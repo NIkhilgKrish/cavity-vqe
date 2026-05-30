@@ -34,31 +34,36 @@ def make_ansatz(n_qubits: int, reps: int = 2):
     kernel : cudaq kernel (callable with parameter list)
     n_params : int — number of variational parameters
     """
-    n_params = n_qubits * (reps + 1)
+    n_params = 2 * n_qubits * (reps + 1)
 
     @cudaq.kernel
     def ansatz(thetas: List[float]):
         q = cudaq.qvector(n_qubits)
+        theta_counter = 0
 
-        # Initial Ry layer
+        # Initial R layer
         for i in range(n_qubits):
-            ry(thetas[i], q[i])
+            ry(thetas[theta_counter], q[i])
+            rz(thetas[theta_counter+1], q[i])
+            theta_counter += 2
 
-        # Entangling + Ry layers
+        # Entangling + R layers
         for r in range(reps):
-            offset = n_qubits * (r + 1)
-            # CNOT ring
+            # CNOT ring (simplified coupling)
             for i in range(n_qubits):
                 cx(q[i], q[(i + 1) % n_qubits])
-            # Ry layer
+            
+            # R layer
             for i in range(n_qubits):
-                ry(thetas[offset + i], q[i])
+                ry(thetas[theta_counter + 2 * i], q[i])
+                ry(thetas[theta_counter + 2 * i + 1], q[i])
+            theta_counter += 2*n_qubits
 
     return ansatz, n_params
 
-
+# Setting standard seed for reproducablity
 def initial_params(n_params: int, seed: int = 42) -> List[float]:
     """Return a reproducible random initial parameter vector in [-π, π]."""
     import numpy as np
     rng = np.random.default_rng(seed)
-    return rng.uniform(-3.14159, 3.14159, size=n_params).tolist()
+    return rng.uniform(-np.pi, np.pi, size=n_params).tolist()
