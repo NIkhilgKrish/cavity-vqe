@@ -115,6 +115,13 @@ All parameters are set in `config.py` and overridable via environment variables:
 
 ---
 
+## References
+
+- Kandala, A. et al. "Hardware-efficient variational quantum eigensolver for small molecules and quantum magnets." *Nature* 549, 242–246 (2017). https://doi.org/10.1038/nature23879
+- Jaynes, E. T. & Cummings, F. W. "Comparison of quantum and semiclassical radiation theories with application to the beam maser." *Proc. IEEE* 51, 89–109 (1963).
+
+---
+
 ## Related
 
 - [IsingFlow](../IsingFlow) — QAOA-based combinatorial optimisation (MaxCut/QUBO) using Qiskit + ReAct agent

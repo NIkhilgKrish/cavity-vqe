@@ -80,3 +80,71 @@ class TestExactEigenvalues:
     def test_sorted_ascending(self):
         eigs = exact_eigenvalues(1.0, 1.0, 0.1, 1)
         assert eigs == sorted(eigs)
+
+
+def _analytic_jc_spectrum(omega_c, omega_0, g, n_photon_max):
+    """Exact dressed-state spectrum of the truncated JC model.
+
+    Sign convention: excited atom has energy +ω0/2.
+
+    Physical states (2·(n_photon_max+1) of them):
+      • |0, g⟩                       → -ω0/2
+      • |n_photon_max, e⟩            → ωc·n_photon_max + ω0/2   (no partner; truncated)
+      • for each excitation block N = 1..n_photon_max, the pair
+        {|N, g⟩, |N-1, e⟩} gives  ωc(N - ½) ± √((Δ/2)² + g²·N),  Δ = ω0 - ωc
+    """
+    delta = omega_0 - omega_c
+    vals = [-omega_0 / 2.0, omega_c * n_photon_max + omega_0 / 2.0]
+    for N in range(1, n_photon_max + 1):
+        root = math.sqrt((delta / 2.0) ** 2 + g ** 2 * N)
+        vals.append(omega_c * (N - 0.5) + root)
+        vals.append(omega_c * (N - 0.5) - root)
+    return sorted(vals)
+
+
+class TestMultiQubitLadder:
+    """Validate the multi-qubit (binary Fock) Hamiltonian against the
+    analytic Jaynes-Cummings dressed-state ladder."""
+
+    CASES = [
+        # (omega_c, omega_0, g, n_photon_max)
+        (1.0, 1.0, 0.10, 3),   # resonant, 2^n_ph == n_photon_max+1 (no unused states)
+        (1.0, 1.5, 0.20, 2),   # detuned, one unused Fock index per atom state
+        (1.0, 0.7, 0.30, 4),   # detuned, several unused Fock indices
+        (2.0, 2.0, 0.05, 3),   # resonant, different scale
+    ]
+
+    @pytest.mark.parametrize("omega_c,omega_0,g,n_photon_max", CASES)
+    def test_physical_spectrum_matches_analytic(self, omega_c, omega_0, g, n_photon_max):
+        eigs = exact_eigenvalues(omega_c, omega_0, g, n_photon_max)
+        n_physical = 2 * (n_photon_max + 1)
+        # Unused Fock indices are pushed up by the penalty, so the lowest
+        # n_physical eigenvalues are exactly the physical dressed states.
+        physical = sorted(eigs)[:n_physical]
+        expected = _analytic_jc_spectrum(omega_c, omega_0, g, n_photon_max)
+        assert np.allclose(physical, expected, atol=1e-9), (
+            f"\n got: {np.round(physical, 6)}\n want: {np.round(expected, 6)}"
+        )
+
+    @pytest.mark.parametrize("omega_c,omega_0,g,n_photon_max", CASES)
+    def test_penalty_separates_unphysical_states(self, omega_c, omega_0, g, n_photon_max):
+        n_ph = math.ceil(math.log2(n_photon_max + 1))
+        n_unused = (2 ** n_ph - (n_photon_max + 1)) * 2
+        eigs = sorted(exact_eigenvalues(omega_c, omega_0, g, n_photon_max))
+        if n_unused == 0:
+            return
+        # The penalty (1e6) must lift every unphysical state far above physical ones.
+        assert eigs[-n_unused] > 1e5
+
+    def test_hermitian(self):
+        # exact_eigenvalues uses eigvalsh, which requires a Hermitian matrix;
+        # complex eigenvalues here would surface as a numerical failure.
+        eigs = exact_eigenvalues(1.0, 1.3, 0.25, 3)
+        assert all(abs(e.imag) < 1e-12 for e in np.asarray(eigs, dtype=complex))
+
+    def test_matches_two_qubit_at_n1(self):
+        # build() routes n_photon_max=1 to the 2-qubit path; the analytic
+        # ladder must still agree.
+        eigs = exact_eigenvalues(1.0, 1.2, 0.15, 1)
+        expected = _analytic_jc_spectrum(1.0, 1.2, 0.15, 1)
+        assert np.allclose(sorted(eigs), expected, atol=1e-9)

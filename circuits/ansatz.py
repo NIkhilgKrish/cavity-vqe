@@ -14,6 +14,12 @@ Total parameters: n * (reps + 1)
 
 This ansatz is expressible on any qubit topology and matches what
 NVIDIA's CUDA-Q examples use for hardware-efficient VQE demos.
+
+References
+----------
+Kandala, A. et al. "Hardware-efficient variational quantum eigensolver for
+small molecules and quantum magnets." Nature 549, 242–246 (2017).
+https://doi.org/10.1038/nature23879
 """
 
 import cudaq
