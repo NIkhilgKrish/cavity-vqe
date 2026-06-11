@@ -57,7 +57,10 @@ def run_vqe(
         n_params        : int
         elapsed_s       : float
     """
-    cudaq.set_target(backend)
+    if backend in ("nvidia", "nvidia-mgpu"):
+        cudaq.set_target("nvidia", option="fp64")
+    else:
+        cudaq.set_target(backend)
 
     n_q     = num_qubits(n_photon_max)
     H       = build_hamiltonian(omega_c, omega_0, g, n_photon_max)
